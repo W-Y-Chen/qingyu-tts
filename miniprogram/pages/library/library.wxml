@@ -1,0 +1,32 @@
+<view class="container">
+
+  <view class="hero">
+    <view class="hero-title">我的音频</view>
+    <view class="hero-sub">保存在小程序本地，退出后仍可播放</view>
+  </view>
+
+  <view class="card" wx:if="{{list.length === 0}}">
+    <view class="empty">还没有保存的音频</view>
+    <view class="card-sub">回到首页生成音频后，点击「保存到音频库」即可在此查看。</view>
+  </view>
+
+  <view class="card" wx:for="{{list}}" wx:key="path">
+    <view class="item-head">
+      <text class="item-name">{{item.name}}</text>
+      <text class="item-time">{{item.timeText}}</text>
+    </view>
+    <view class="card-sub">{{item.voice}} · {{item.durationText}} · {{item.chars}} 字</view>
+    <view class="btn-row">
+      <button class="btn {{item.path === playingPath ? 'btn-plain' : 'btn-primary'}}"
+              bindtap="onToggle" data-path="{{item.path}}">
+        {{item.path === playingPath ? '停止' : '播放'}}
+      </button>
+      <button class="btn btn-plain" bindtap="onDelete" data-path="{{item.path}}">删除</button>
+    </view>
+  </view>
+
+  <view class="footer">
+    <view class="footer-server" bindtap="onEditServer">服务地址：{{serverBase}}</view>
+  </view>
+
+</view>

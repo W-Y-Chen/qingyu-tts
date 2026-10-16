@@ -1,0 +1,128 @@
+<view class="container">
+
+  <!-- 顶部标识 -->
+  <view class="hero">
+    <view class="hero-title">轻语 TTS</view>
+    <view class="hero-sub">粘贴文字或导入 txt，一键转成可保存的语音</view>
+  </view>
+
+  <!-- 文本输入 -->
+  <view class="card">
+    <view class="card-title">
+      <text>文本</text>
+      <text class="counter">{{charCount}} 字</text>
+    </view>
+    <textarea
+      class="textarea"
+      value="{{text}}"
+      bindinput="onTextInput"
+      placeholder="在此粘贴文字，或点击下方「导入 txt」读取文档内容"
+      maxlength="-1"
+      show-confirm-bar="{{false}}"
+      cursor-spacing="20"
+    />
+    <view class="btn-row">
+      <button class="btn btn-plain" bindtap="onImportTxt">导入 txt</button>
+      <button class="btn btn-plain" bindtap="onClearText">清空</button>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="card-title">
+      <text>停顿标记</text>
+      <text class="counter">{{pauseCount}} 处</text>
+    </view>
+    <view class="card-sub">在需要停顿的位置插入标记，解决长句朗读断句生硬的问题</view>
+    <view class="tag-row">
+      <view class="tag-btn" bindtap="onInsertPause" data-ms="300">+ 短停 300ms</view>
+      <view class="tag-btn" bindtap="onInsertPause" data-ms="800">+ 长停 800ms</view>
+      <view class="tag-btn" bindtap="onInsertPause" data-ms="1500">+ 换气 1.5s</view>
+      <view class="tag-btn tag-btn-plain" bindtap="onPauseHelp">语法说明</view>
+    </view>
+  </view>
+
+  <!-- 音色与参数 -->
+  <view class="card">
+    <view class="card-title">音色</view>
+    <picker mode="selector" range="{{voiceLabels}}" value="{{voiceIndex}}" bindchange="onVoiceChange" disabled="{{voices.length === 0}}">
+      <view class="picker">
+        <text class="{{voices.length ? '' : 'muted'}}">{{voiceLabels[voiceIndex] || '正在加载音色…'}}</text>
+        <text class="arrow">›</text>
+      </view>
+    </picker>
+    <view class="card-sub" wx:if="{{voiceDesc}}">{{voiceDesc}}</view>
+
+    <view class="divider"></view>
+
+    <view class="slider-item">
+      <view class="slider-head">
+        <text>语速</text>
+        <text class="slider-val">{{rateLabel}}</text>
+      </view>
+      <slider min="-50" max="50" step="5" value="{{rate}}" bindchanging="onRateChange" bindchange="onRateChange"
+              activeColor="#4B6BFB" backgroundColor="#EEF0F3" block-size="20" />
+    </view>
+
+    <view class="slider-item">
+      <view class="slider-head">
+        <text>音量</text>
+        <text class="slider-val">{{volumeLabel}}</text>
+      </view>
+      <slider min="-50" max="50" step="5" value="{{volume}}" bindchanging="onVolumeChange" bindchange="onVolumeChange"
+              activeColor="#4B6BFB" backgroundColor="#EEF0F3" block-size="20" />
+    </view>
+  </view>
+
+  <!-- 操作 -->
+  <view class="btn-row action-row">
+    <button class="btn btn-ghost" bindtap="onPreview" loading="{{previewing}}" disabled="{{previewing || generating}}">试听</button>
+    <button class="btn btn-primary {{canGenerate ? '' : 'disabled'}}" bindtap="onGenerate" loading="{{generating}}" disabled="{{generating || previewing}}">生成完整音频</button>
+  </view>
+  <view class="hint" wx:if="{{!canGenerate}}">请先输入文本</view>
+  <view class="hint">试听仅合成前 200 字用于确认音色；生成完整音频会处理全文并支持长文本自动分段</view>
+
+  <!-- 合成进度 -->
+  <view class="card" wx:if="{{generating}}">
+    <view class="card-title">
+      <text>正在合成</text>
+      <text class="counter">{{progress}}%</text>
+    </view>
+    <progress percent="{{progress}}" stroke-width="6" activeColor="#4B6BFB" backgroundColor="#EEF0F3" />
+    <view class="card-sub">已完成 {{doneSegments}} / {{totalSegments}} 段 · 长文本分段处理中，请勿退出页面</view>
+  </view>
+
+  <!-- 播放器 -->
+  <view class="card" wx:if="{{hasAudio}}">
+    <view class="card-title">
+      <text>播放器</text>
+      <text class="counter">{{durationText}}</text>
+    </view>
+    <view class="progress-row">
+      <text class="time">{{currentText}}</text>
+      <slider class="seek" min="0" max="{{seekMax}}" value="{{currentTime}}" bindchange="onSeek"
+              activeColor="#4B6BFB" backgroundColor="#EEF0F3" block-size="16" />
+      <text class="time">{{durationText}}</text>
+    </view>
+    <view class="btn-row">
+      <button class="btn btn-primary" bindtap="onTogglePlay">{{playing ? '暂停' : '播放'}}</button>
+      <button class="btn btn-plain" bindtap="onStopPlay">停止</button>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="btn-row">
+      <button class="btn btn-plain" bindtap="onSave">保存到音频库</button>
+      <button class="btn btn-plain" bindtap="onCopyLink">复制下载链接</button>
+    </view>
+    <view class="card-sub">
+      受微信平台限制，小程序无法直接写入手机文件管理器。两种保存方式：保存到音频库可在「我的音频」中长期离线播放；复制链接后在浏览器打开，可下载到手机「下载」目录。
+    </view>
+  </view>
+
+  <!-- 底部 -->
+  <view class="footer">
+    <view class="footer-link" bindtap="gotoLibrary">我的音频 ›</view>
+    <view class="footer-server" bindtap="onEditServer">服务地址：{{serverBase}}</view>
+  </view>
+
+</view>

@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "如果本软件对你的研究或产品有帮助，请按以下格式引用。"
+title: "轻语 TTS：面向离屏收听的本地化文本转语音工具"
+abstract: >-
+  轻语 TTS 把用户自己的文本（专业书章节、论文、笔记、单词表、讲义）转换为可离屏收听的音频，
+  支持长文本自动分段、可书写的自定义停顿标记、双合成引擎自动降级与单文件导出。
+  核心创新包括：绕过第三方合成接口转义限制的停顿标签属性注入方法、异构引擎按容器格式分派的合并方法，
+  以及面向长文本的分段并发调度与增量合并方法。
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/W-Y-Chen/qingyu-tts"
+keywords:
+  - text-to-speech
+  - ssml
+  - 语音合成
+  - 停顿标记
+  - 小程序
+authors:
+  - name: "W-Y-Chen"
+version: "1.0.0"
+date-released: "2026-10-16"

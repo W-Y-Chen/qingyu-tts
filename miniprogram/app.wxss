@@ -1,0 +1,96 @@
+/* 轻语 TTS —— 全局样式：极简、无广告、浅色清爽 */
+page {
+  background: #F5F6F8;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #1F2329;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  padding: 24rpx 24rpx 60rpx;
+}
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(31, 35, 41, 0.05);
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1F2329;
+  margin-bottom: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-sub {
+  font-size: 24rpx;
+  color: #8A9099;
+  margin-bottom: 20rpx;
+  line-height: 1.6;
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  text-align: center;
+  border: none;
+}
+
+.btn::after { border: none; }
+
+.btn-primary {
+  background: #4B6BFB;
+  color: #FFFFFF;
+  box-shadow: 0 8rpx 20rpx rgba(75, 107, 251, 0.28);
+}
+
+.btn-primary.disabled {
+  background: #C3CCE8;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: #F2F4FF;
+  color: #4B6BFB;
+}
+
+.btn-plain {
+  background: #F5F6F8;
+  color: #4E5969;
+}
+
+.btn-row {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 8rpx;
+}
+
+.btn-row .btn { flex: 1; }
+
+/* ---------- 通用 ---------- */
+.divider {
+  height: 1rpx;
+  background: #EEF0F3;
+  margin: 24rpx 0;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  background: #F2F4FF;
+  color: #4B6BFB;
+  font-size: 22rpx;
+}
+
+.muted { color: #8A9099; font-size: 24rpx; }

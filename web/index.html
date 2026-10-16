@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4B6BFB">
+<title>轻语 TTS · 文本转语音</title>
+<!-- 使用相对路径：既可由 Flask 同源托管，也可直接双击本文件在浏览器中打开 -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 防呆提示：正常情况下 style.css 会把这段隐藏。
+     若你看到了这段文字，说明样式文件没有加载成功（通常是直接用预览面板
+     打开了单文件，同目录下缺少 style.css），页面会退化为无样式的裸 HTML。 -->
+<div class="no-css-warn">
+  <strong>样式未加载</strong>
+  <span>
+    当前页面没有加载到 style.css，界面已退化为无样式状态。请用以下任一方式打开：
+    ① 启动后端后访问 <b>http://127.0.0.1:5000</b>；
+    ② 直接打开同目录下的 <b>standalone.html</b>（单文件版，样式与脚本已内联）。
+  </span>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ 顶栏 ============ -->
+  <header class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="4" y="13.5" width="3" height="5" rx="1.5"/>
+        <rect x="9.5" y="9.5" width="3" height="13" rx="1.5"/>
+        <rect x="15" y="5.5" width="3" height="21" rx="1.5"/>
+        <rect x="20.5" y="10.5" width="3" height="11" rx="1.5"/>
+        <rect x="26" y="14" width="3" height="4" rx="1.5"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <h1>轻语 TTS</h1>
+      <p>粘贴文字或导入 txt，一键转成可下载的语音</p>
+    </div>
+    <div class="status" id="statusPill" title="后端连接状态">
+      <span class="dot"></span><span id="statusText">连接中…</span>
+    </div>
+    <button class="icon-btn" id="btnTheme" title="切换深浅色" aria-label="切换深浅色"></button>
+  </header>
+
+  <div class="badges">
+    <span>免安装</span>
+    <span>无广告</span>
+    <span>长文本自动分段</span>
+    <span>可自定义停顿</span>
+    <span>14 个中文音色</span>
+  </div>
+
+  <div class="layout">
+
+    <!-- ============ 左：文本 ============ -->
+    <section>
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">文本</h2>
+          <span class="counter" id="charCount">0 字</span>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <textarea id="text" class="textarea" placeholder="在此粘贴文字，或点击下方「导入 txt」读取文档内容（也支持把文件直接拖进来）"></textarea>
+          <div class="drop-mask" id="dropMask">松开即可导入</div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-plain" id="btnImport">
+            <svg viewBox="0 0 24 24"><path d="M12 3l5 5h-3v6h-4V8H7l5-5zM5 18h14v2H5z"/></svg>
+            导入 txt
+          </button>
+          <button class="btn btn-plain" id="btnClear">
+            <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4l1-2zm-3 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg>
+            清空
+          </button>
+          <input type="file" id="fileInput" accept=".txt,text/plain" hidden>
+        </div>
+        <p class="hint">支持 UTF-8 与 GBK 编码自动识别，单个文件建议不超过 2MB</p>
+
+        <hr class="divider">
+
+        <div class="card-head">
+          <h2 class="card-title">停顿标记</h2>
+          <span class="counter" id="pauseCount">0 处</span>
+        </div>
+        <p class="hint">在需要停顿的位置插入标记，解决长句朗读断句生硬的问题</p>
+        <div class="tag-row">
+          <button class="tag-btn" data-ms="300">+ 短停 300ms</button>
+          <button class="tag-btn" data-ms="800">+ 长停 800ms</button>
+          <button class="tag-btn" data-ms="1500">+ 换气 1.5s</button>
+          <button class="tag-btn tag-btn-plain" id="btnPauseHelp">语法说明</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">我的资料</h2>
+          <span class="counter" id="docsCount">0 篇</span>
+        </div>
+        <p class="hint">
+          把常用的资料存下来，下次点「收听」直接开始，不用重新粘贴。
+          资料保存在这台设备的浏览器里，不会上传。
+        </p>
+        <ul class="docs" id="docsList"></ul>
+        <p class="hint" id="docsEmpty">还没有保存的资料。粘贴或导入文本后，点下面按钮存一份。</p>
+        <div class="btn-row">
+          <button class="btn btn-plain" id="btnSaveDoc">
+            <svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5V3zm2 2v5h9V5H7zm0 7v7h9v-7H7z"/></svg>
+            保存当前文本
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 右：参数 / 操作 / 播放 ============ -->
+    <section>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">音色</h2>
+          <span class="counter" id="voiceSource">加载中…</span>
+        </div>
+        <select id="voice" class="select" disabled>
+          <option>正在加载音色…</option>
+        </select>
+        <p class="hint" id="voiceDesc"></p>
+
+        <hr class="divider">
+
+        <div class="slider-item">
+          <div class="slider-head"><span>语速</span><span class="slider-val" id="rateLabel">正常</span></div>
+          <input type="range" id="rate" class="range" min="-50" max="50" step="5" value="0">
+        </div>
+        <div class="slider-item">
+          <div class="slider-head"><span>音量</span><span class="slider-val" id="volumeLabel">正常</span></div>
+          <input type="range" id="volume" class="range" min="-50" max="50" step="5" value="0">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn btn-ghost" id="btnPreview">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            试听
+          </button>
+          <button class="btn btn-primary" id="btnGenerate">
+            <svg viewBox="0 0 24 24"><path d="M4 12h2v-1a6 6 0 1112 0v1h2v6H4v-6zm4 0h2v-1a2 2 0 114 0v1h2v-1a4 4 0 10-8 0v1z"/></svg>
+            生成完整音频
+          </button>
+        </div>
+        <p class="hint" id="actionHint">试听仅合成前 200 字用于确认音色；生成完整音频会处理全文并支持长文本自动分段</p>
+
+        <div class="progress-box" id="progressBox" hidden>
+          <div class="card-head">
+            <span class="progress-title">正在合成</span>
+            <span class="counter" id="progressText">0%</span>
+          </div>
+          <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+          <p class="hint" id="segmentText">已完成 0 / 0 段</p>
+        </div>
+      </div>
+
+      <div class="card" id="playerCard" hidden>
+        <div class="card-head">
+          <h2 class="card-title">播放器</h2>
+          <span class="counter" id="durationText">00:00</span>
+        </div>
+
+        <div class="player">
+          <button class="play-btn" id="btnPlay" aria-label="播放"></button>
+          <div class="player-main">
+            <div class="track" id="track"><div class="track-fill" id="trackFill"></div></div>
+            <div class="times"><span id="curTime">00:00</span><span id="totTime">00:00</span></div>
+          </div>
+        </div>
+        <audio id="player" class="hidden-audio" preload="metadata"></audio>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btnDownload">
+            <svg viewBox="0 0 24 24"><path d="M11 3h2v9l3.5-3.5 1.4 1.4L12 16l-6-6.1 1.4-1.4L11 12V3zM5 18h14v2H5z"/></svg>
+            下载音频
+          </button>
+          <button class="btn btn-plain" id="btnCopyLink">
+            <svg viewBox="0 0 24 24"><path d="M10.6 13.4a1 1 0 010-1.4l1.4-1.4a3 3 0 014.2 0l1.4 1.4a3 3 0 010 4.2l-2.1 2.2a3 3 0 01-4.3 0 1 1 0 011.4-1.5 1 1 0 001.5 0l2.1-2.1a1 1 0 000-1.4l-1.4-1.4a1 1 0 00-1.4 0l-1.4 1.4a1 1 0 01-1.4 0zm2.8-2.8a1 1 0 010 1.4l-1.4 1.4a3 3 0 01-4.2 0L6.4 12a3 3 0 010-4.2l2.1-2.2a3 3 0 014.3 0 1 1 0 01-1.4 1.5 1 1 0 00-1.5 0L7.8 9.2a1 1 0 000 1.4l1.4 1.4a1 1 0 001.4 0l1.4-1.4a1 1 0 011.4 0z"/></svg>
+            复制链接
+          </button>
+        </div>
+        <div class="steps">
+          <p class="hint"><b>健身 / 通勤怎么听（推荐，最稳）</b></p>
+          <ol class="steps-list">
+            <li>在有网的地方生成好音频，点上面的<b>「下载音频」</b>，文件会存进手机。</li>
+            <li>用手机<b>自带的音乐播放器</b>打开这个文件：锁屏继续放、不耗流量、也不需要电脑开着。</li>
+          </ol>
+          <p class="hint">
+            也可以直接在本页听：先按播放，再锁屏。同一份资料会自动记住上次听到的位置，
+            但音频链接在服务端只保留 2 小时，长期收听请下载。
+            云端引擎输出 MP3，自动降级到本地引擎时输出 WAV。
+          </p>
+        </div>
+      </div>
+
+      <div class="card" id="localCard">
+        <div class="card-head">
+          <h2 class="card-title">离线朗读</h2>
+          <span class="counter" id="localState">未开始</span>
+        </div>
+        <p class="hint" id="localTip">
+          用手机系统自带的语音引擎朗读，不需要电脑、不需要后端、也不需要网络。
+          注意：<b>这种方式无法导出 MP3 文件</b>，自定义停顿标记会被转成自然停顿。
+        </p>
+
+        <select id="localVoice" class="select" disabled></select>
+        <p class="hint" id="localVoiceTip">正在读取系统语音…</p>
+        <div class="tag-row">
+          <button class="tag-btn tag-btn-plain" id="btnLocalRescan">重新检测语音</button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="btnLocalSpeak">朗读</button>
+          <button class="btn btn-plain" id="btnLocalPause" disabled>暂停</button>
+          <button class="btn btn-plain" id="btnLocalStop" disabled>停止</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-plain" id="btnEditServer2">修改后端地址</button>
+        </div>
+      </div>
+
+      <div class="card" id="historyCard" hidden>
+        <div class="card-head">
+          <h2 class="card-title">最近生成</h2>
+          <span class="counter">服务端保留 30 分钟</span>
+        </div>
+        <ul class="history" id="historyList"></ul>
+      </div>
+
+    </section>
+  </div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <footer class="footer">
+    <span id="serverInfo">—</span>
+    <button class="link-btn" id="btnEditServer">修改后端地址</button>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

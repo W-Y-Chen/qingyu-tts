@@ -1,0 +1,9 @@
+{
+  "desc": "轻语 TTS 小程序未被索引配置",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

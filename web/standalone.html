@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4B6BFB">
+<title>轻语 TTS · 文本转语音</title>
+<!-- 使用相对路径：既可由 Flask 同源托管，也可直接双击本文件在浏览器中打开 -->
+<style>
+/* 轻语 TTS 网页版 —— 极简但精致，响应式（手机 / 平板 / 桌面），支持浅色与深色 */
+
+:root {
+  --primary: #4B6BFB;
+  --primary-2: #7A5AF8;
+  --primary-soft: #EEF1FF;
+  --grad: linear-gradient(135deg, #4B6BFB 0%, #7A5AF8 100%);
+
+  --bg: #F4F6FB;
+  --bg-2: #EEF1F8;
+  --card: #FFFFFF;
+  --text: #101828;
+  --text-sub: #475467;
+  --muted: #98A2B3;
+  --line: #EAECF0;
+  --field: #F7F8FB;
+
+  --ok: #17B26A;
+  --err: #F04438;
+  --warn: #F79009;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .04);
+  --shadow: 0 1px 3px rgba(16, 24, 40, .05), 0 8px 24px -6px rgba(16, 24, 40, .10);
+  --shadow-lg: 0 2px 6px rgba(16, 24, 40, .06), 0 18px 40px -12px rgba(16, 24, 40, .18);
+
+  --r-lg: 20px;
+  --r-md: 14px;
+  --r-sm: 10px;
+}
+
+[data-theme="dark"] {
+  --primary: #7C93FF;
+  --primary-2: #A78BFA;
+  --primary-soft: #1E2233;
+  --grad: linear-gradient(135deg, #6B84FF 0%, #A78BFA 100%);
+
+  --bg: #0E1016;
+  --bg-2: #12151C;
+  --card: #171A22;
+  --text: #E7E9EF;
+  --text-sub: #A9B1C0;
+  --muted: #7B8494;
+  --line: #262B36;
+  --field: #1D212B;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow: 0 1px 3px rgba(0, 0, 0, .35), 0 8px 24px -6px rgba(0, 0, 0, .5);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, .4), 0 18px 40px -12px rgba(0, 0, 0, .6);
+}
+
+* { box-sizing: border-box; }
+
+/* 样式加载成功时隐藏防呆提示；CSS 没加载时该元素默认可见 */
+.no-css-warn { display: none; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 420px at 12% -8%, rgba(75, 107, 251, .13), transparent 60%),
+    radial-gradient(900px 380px at 100% 0%, rgba(122, 90, 248, .10), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .25s, color .25s;
+}
+
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 22px 16px calc(56px + env(safe-area-inset-bottom));
+}
+
+/* ---------------------------------------------------------- 顶栏 */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px 22px;
+}
+
+.logo {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--grad);
+  box-shadow: 0 8px 20px -6px rgba(75, 107, 251, .55);
+}
+
+.logo svg { width: 26px; height: 26px; fill: #fff; }
+
+.brand { flex: 1; min-width: 0; }
+
+.brand h1 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.status.on .dot { background: var(--ok); box-shadow: 0 0 0 3px rgba(23, 178, 106, .18); }
+.status.off .dot { background: var(--err); box-shadow: 0 0 0 3px rgba(240, 68, 56, .16); }
+.status.on { color: var(--text-sub); }
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text-sub);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: color .18s, border-color .18s, transform .18s;
+}
+
+.icon-btn:hover { color: var(--primary); border-color: var(--primary); transform: translateY(-1px); }
+.icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+/* ---------------------------------------------------------- 布局 */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 880px) {
+  .layout { grid-template-columns: 1.08fr 0.92fr; gap: 18px; }
+}
+
+@media (max-width: 879px) {
+  .layout > section { display: contents; }
+}
+
+/* ---------------------------------------------------------- 卡片 */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  transition: box-shadow .22s, border-color .22s;
+}
+
+.layout > section > .card:last-child { margin-bottom: 0; }
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: .2px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.card-title::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--grad);
+  flex: none;
+}
+
+/* 状态文字限宽并截断，避免长文案把卡片标题挤到换行 */
+.counter {
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: right;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: none;
+}
+
+.card-head { flex-wrap: nowrap; align-items: center; }
+.card-title { flex: 1; min-width: 0; }
+
+/* ---------------------------------------------------------- 特性徽章 */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 2px 18px;
+}
+
+.badges span {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--text-sub);
+  font-size: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+
+.hint { margin: 9px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+
+/* ---------------------------------------------------------- 文本域 */
+.dropzone { position: relative; }
+
+.textarea {
+  width: 100%;
+  min-height: 250px;
+  max-height: 58vh;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.8;
+  resize: vertical;
+  outline: none;
+  transition: border-color .18s, box-shadow .18s, background-color .18s;
+}
+
+.textarea::placeholder { color: var(--muted); }
+
+.textarea:focus {
+  border-color: var(--primary);
+  background: var(--card);
+  box-shadow: 0 0 0 4px rgba(75, 107, 251, .13);
+}
+
+.drop-mask {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--primary);
+  border-radius: var(--r-md);
+  background: rgba(75, 107, 251, .10);
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(2px);
+}
+
+.dropzone.dragging .drop-mask { display: flex; }
+
+/* ---------------------------------------------------------- 按钮 */
+.btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.btn-row .btn { flex: 1; min-width: 108px; }
+
+.btn {
+  position: relative;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-family: inherit;
+  font-weight: 550;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform .16s, box-shadow .18s, filter .18s, opacity .18s;
+}
+
+.btn:active:not(:disabled) { transform: translateY(1px) scale(.995); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 6px 18px -6px rgba(75, 107, 251, .6);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 10px 26px -8px rgba(75, 107, 251, .75);
+  transform: translateY(-1px);
+}
+
+.btn-ghost { background: var(--primary-soft); color: var(--primary); }
+.btn-ghost:hover:not(:disabled) { filter: brightness(.97); transform: translateY(-1px); }
+
+.btn-plain { background: var(--field); color: var(--text-sub); border-color: var(--line); }
+.btn-plain:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+
+.btn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+
+.spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------- 标记按钮 */
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+
+.tag-btn {
+  padding: 8px 15px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 550;
+  cursor: pointer;
+  transition: transform .16s, border-color .18s;
+}
+
+.tag-btn:hover { transform: translateY(-1px); border-color: var(--primary); }
+.tag-btn-plain { background: var(--field); color: var(--text-sub); border-color: var(--line); }
+.tag-btn-plain:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ---------------------------------------------------------- 表单控件 */
+.select {
+  width: 100%;
+  height: 46px;
+  padding: 0 40px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--field)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2398A2B3'><path d='M7 10l5 5 5-5z'/></svg>")
+    no-repeat right 12px center / 20px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14.5px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color .18s, box-shadow .18s;
+}
+
+.select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(75, 107, 251, .13); }
+.select:disabled { cursor: not-allowed; opacity: .7; }
+
+.slider-item { margin-bottom: 10px; }
+
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.slider-val { color: var(--primary); font-size: 13px; font-weight: 600; }
+
+.range { width: 100%; height: 26px; margin: 0; background: none; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.range::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--line); }
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px; margin-top: -6px;
+  border-radius: 50%; background: #fff;
+  border: 2px solid var(--primary);
+  box-shadow: 0 2px 6px rgba(16, 24, 40, .2);
+  transition: transform .15s;
+}
+.range::-webkit-slider-thumb:hover { transform: scale(1.12); }
+.range::-moz-range-track { height: 6px; border-radius: 999px; background: var(--line); }
+.range::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--primary);
+}
+
+/* ---------------------------------------------------------- 进度 */
+.progress-box { margin-top: 18px; }
+.progress-title { font-size: 14px; font-weight: 600; }
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.bar-fill {
+  position: relative;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--grad);
+  transition: width .35s ease;
+  overflow: hidden;
+}
+
+.bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent);
+  animation: shimmer 1.3s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ---------------------------------------------------------- 播放器 */
+.player {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--field);
+}
+
+.play-btn {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--grad);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -6px rgba(75, 107, 251, .6);
+  transition: transform .16s;
+}
+
+.play-btn:hover { transform: scale(1.06); }
+.play-btn:active { transform: scale(.96); }
+.play-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+.player-main { flex: 1; min-width: 0; }
+
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+}
+
+.track::before { content: ""; position: absolute; inset: -8px 0; } /* 扩大点击热区 */
+
+.track-fill {
+  position: relative;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--grad);
+}
+
+.track-fill::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--primary);
+  box-shadow: 0 1px 4px rgba(16, 24, 40, .25);
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------- 历史 */
+.history { list-style: none; margin: 0; padding: 0; }
+
+.history li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.history li:first-child { border-top: none; }
+
+.hist-main { flex: 1; min-width: 0; }
+
+.hist-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-meta { font-size: 12px; color: var(--muted); }
+
+.hist-btn {
+  border: 1px solid transparent;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-radius: 9px;
+  padding: 7px 13px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .16s, border-color .18s;
+}
+
+.hist-btn:hover { transform: translateY(-1px); border-color: var(--primary); }
+.hist-btn.del { background: var(--field); color: var(--text-sub); border-color: var(--line); }
+.hist-btn.del:hover { border-color: var(--err); color: var(--err); }
+
+/* ---------------------------------------------------------- 我的资料 */
+.docs { list-style: none; margin: 4px 0 0; padding: 0; }
+
+.docs li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.docs li:first-child { border-top: none; }
+
+.doc-main { flex: 1; min-width: 0; }
+
+.doc-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-meta { font-size: 12px; color: var(--muted); }
+
+/* ---------------------------------------------------------- 离线收听步骤 */
+.steps {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--field);
+}
+
+.steps .hint { margin-top: 0; }
+
+.steps-list {
+  margin: 8px 0 10px;
+  padding-left: 20px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.85;
+}
+
+.steps-list b { color: var(--text); font-weight: 600; }
+
+/* ---------------------------------------------------------- 提示条 */
+.notice {
+  position: relative;
+  padding: 13px 16px 13px 18px;
+  font-size: 13.5px;
+  border-radius: var(--r-md);
+  border-left: 3px solid var(--primary);
+  animation: rise .25s ease;
+}
+
+.notice.error { border-left-color: var(--err); color: var(--err); }
+.notice.warn { border-left-color: var(--warn); }
+.notice.info { border-left-color: var(--primary); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------- 页脚 */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 4px 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:hover { text-decoration: underline; }
+
+.hidden-audio { display: none; }
+
+/* ---------------------------------------------------------- 响应式微调 */
+@media (max-width: 620px) {
+  .wrap { padding: 14px 12px calc(48px + env(safe-area-inset-bottom)); }
+
+  .topbar { padding-bottom: 16px; gap: 11px; }
+  .logo { width: 40px; height: 40px; border-radius: 12px; }
+  .logo svg { width: 22px; height: 22px; }
+  .brand h1 { font-size: 18px; }
+  .brand p { display: none; }
+
+  .status { padding: 6px 10px; font-size: 0; gap: 0; }
+  .status .dot { margin: 0; }
+
+  .card { padding: 16px; border-radius: 18px; }
+  .textarea { min-height: 180px; }
+  .btn-row .btn { min-width: 92px; }
+  .btn { font-size: 14px; height: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- 防呆提示：正常情况下 style.css 会把这段隐藏。
+     若你看到了这段文字，说明样式文件没有加载成功（通常是直接用预览面板
+     打开了单文件，同目录下缺少 style.css），页面会退化为无样式的裸 HTML。 -->
+<div class="no-css-warn">
+  <strong>样式未加载</strong>
+  <span>
+    当前页面没有加载到 style.css，界面已退化为无样式状态。请用以下任一方式打开：
+    ① 启动后端后访问 <b>http://127.0.0.1:5000</b>；
+    ② 直接打开同目录下的 <b>standalone.html</b>（单文件版，样式与脚本已内联）。
+  </span>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ 顶栏 ============ -->
+  <header class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="4" y="13.5" width="3" height="5" rx="1.5"/>
+        <rect x="9.5" y="9.5" width="3" height="13" rx="1.5"/>
+        <rect x="15" y="5.5" width="3" height="21" rx="1.5"/>
+        <rect x="20.5" y="10.5" width="3" height="11" rx="1.5"/>
+        <rect x="26" y="14" width="3" height="4" rx="1.5"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <h1>轻语 TTS</h1>
+      <p>粘贴文字或导入 txt，一键转成可下载的语音</p>
+    </div>
+    <div class="status" id="statusPill" title="后端连接状态">
+      <span class="dot"></span><span id="statusText">连接中…</span>
+    </div>
+    <button class="icon-btn" id="btnTheme" title="切换深浅色" aria-label="切换深浅色"></button>
+  </header>
+
+  <div class="badges">
+    <span>免安装</span>
+    <span>无广告</span>
+    <span>长文本自动分段</span>
+    <span>可自定义停顿</span>
+    <span>14 个中文音色</span>
+  </div>
+
+  <div class="layout">
+
+    <!-- ============ 左：文本 ============ -->
+    <section>
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">文本</h2>
+          <span class="counter" id="charCount">0 字</span>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <textarea id="text" class="textarea" placeholder="在此粘贴文字，或点击下方「导入 txt」读取文档内容（也支持把文件直接拖进来）"></textarea>
+          <div class="drop-mask" id="dropMask">松开即可导入</div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-plain" id="btnImport">
+            <svg viewBox="0 0 24 24"><path d="M12 3l5 5h-3v6h-4V8H7l5-5zM5 18h14v2H5z"/></svg>
+            导入 txt
+          </button>
+          <button class="btn btn-plain" id="btnClear">
+            <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4l1-2zm-3 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg>
+            清空
+          </button>
+          <input type="file" id="fileInput" accept=".txt,text/plain" hidden>
+        </div>
+        <p class="hint">支持 UTF-8 与 GBK 编码自动识别，单个文件建议不超过 2MB</p>
+
+        <hr class="divider">
+
+        <div class="card-head">
+          <h2 class="card-title">停顿标记</h2>
+          <span class="counter" id="pauseCount">0 处</span>
+        </div>
+        <p class="hint">在需要停顿的位置插入标记，解决长句朗读断句生硬的问题</p>
+        <div class="tag-row">
+          <button class="tag-btn" data-ms="300">+ 短停 300ms</button>
+          <button class="tag-btn" data-ms="800">+ 长停 800ms</button>
+          <button class="tag-btn" data-ms="1500">+ 换气 1.5s</button>
+          <button class="tag-btn tag-btn-plain" id="btnPauseHelp">语法说明</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">我的资料</h2>
+          <span class="counter" id="docsCount">0 篇</span>
+        </div>
+        <p class="hint">
+          把常用的资料存下来，下次点「收听」直接开始，不用重新粘贴。
+          资料保存在这台设备的浏览器里，不会上传。
+        </p>
+        <ul class="docs" id="docsList"></ul>
+        <p class="hint" id="docsEmpty">还没有保存的资料。粘贴或导入文本后，点下面按钮存一份。</p>
+        <div class="btn-row">
+          <button class="btn btn-plain" id="btnSaveDoc">
+            <svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5V3zm2 2v5h9V5H7zm0 7v7h9v-7H7z"/></svg>
+            保存当前文本
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 右：参数 / 操作 / 播放 ============ -->
+    <section>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">音色</h2>
+          <span class="counter" id="voiceSource">加载中…</span>
+        </div>
+        <select id="voice" class="select" disabled>
+          <option>正在加载音色…</option>
+        </select>
+        <p class="hint" id="voiceDesc"></p>
+
+        <hr class="divider">
+
+        <div class="slider-item">
+          <div class="slider-head"><span>语速</span><span class="slider-val" id="rateLabel">正常</span></div>
+          <input type="range" id="rate" class="range" min="-50" max="50" step="5" value="0">
+        </div>
+        <div class="slider-item">
+          <div class="slider-head"><span>音量</span><span class="slider-val" id="volumeLabel">正常</span></div>
+          <input type="range" id="volume" class="range" min="-50" max="50" step="5" value="0">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn btn-ghost" id="btnPreview">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            试听
+          </button>
+          <button class="btn btn-primary" id="btnGenerate">
+            <svg viewBox="0 0 24 24"><path d="M4 12h2v-1a6 6 0 1112 0v1h2v6H4v-6zm4 0h2v-1a2 2 0 114 0v1h2v-1a4 4 0 10-8 0v1z"/></svg>
+            生成完整音频
+          </button>
+        </div>
+        <p class="hint" id="actionHint">试听仅合成前 200 字用于确认音色；生成完整音频会处理全文并支持长文本自动分段</p>
+
+        <div class="progress-box" id="progressBox" hidden>
+          <div class="card-head">
+            <span class="progress-title">正在合成</span>
+            <span class="counter" id="progressText">0%</span>
+          </div>
+          <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+          <p class="hint" id="segmentText">已完成 0 / 0 段</p>
+        </div>
+      </div>
+
+      <div class="card" id="playerCard" hidden>
+        <div class="card-head">
+          <h2 class="card-title">播放器</h2>
+          <span class="counter" id="durationText">00:00</span>
+        </div>
+
+        <div class="player">
+          <button class="play-btn" id="btnPlay" aria-label="播放"></button>
+          <div class="player-main">
+            <div class="track" id="track"><div class="track-fill" id="trackFill"></div></div>
+            <div class="times"><span id="curTime">00:00</span><span id="totTime">00:00</span></div>
+          </div>
+        </div>
+        <audio id="player" class="hidden-audio" preload="metadata"></audio>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btnDownload">
+            <svg viewBox="0 0 24 24"><path d="M11 3h2v9l3.5-3.5 1.4 1.4L12 16l-6-6.1 1.4-1.4L11 12V3zM5 18h14v2H5z"/></svg>
+            下载音频
+          </button>
+          <button class="btn btn-plain" id="btnCopyLink">
+            <svg viewBox="0 0 24 24"><path d="M10.6 13.4a1 1 0 010-1.4l1.4-1.4a3 3 0 014.2 0l1.4 1.4a3 3 0 010 4.2l-2.1 2.2a3 3 0 01-4.3 0 1 1 0 011.4-1.5 1 1 0 001.5 0l2.1-2.1a1 1 0 000-1.4l-1.4-1.4a1 1 0 00-1.4 0l-1.4 1.4a1 1 0 01-1.4 0zm2.8-2.8a1 1 0 010 1.4l-1.4 1.4a3 3 0 01-4.2 0L6.4 12a3 3 0 010-4.2l2.1-2.2a3 3 0 014.3 0 1 1 0 01-1.4 1.5 1 1 0 00-1.5 0L7.8 9.2a1 1 0 000 1.4l1.4 1.4a1 1 0 001.4 0l1.4-1.4a1 1 0 011.4 0z"/></svg>
+            复制链接
+          </button>
+        </div>
+        <div class="steps">
+          <p class="hint"><b>健身 / 通勤怎么听（推荐，最稳）</b></p>
+          <ol class="steps-list">
+            <li>在有网的地方生成好音频，点上面的<b>「下载音频」</b>，文件会存进手机。</li>
+            <li>用手机<b>自带的音乐播放器</b>打开这个文件：锁屏继续放、不耗流量、也不需要电脑开着。</li>
+          </ol>
+          <p class="hint">
+            也可以直接在本页听：先按播放，再锁屏。同一份资料会自动记住上次听到的位置，
+            但音频链接在服务端只保留 2 小时，长期收听请下载。
+            云端引擎输出 MP3，自动降级到本地引擎时输出 WAV。
+          </p>
+        </div>
+      </div>
+
+      <div class="card" id="localCard">
+        <div class="card-head">
+          <h2 class="card-title">离线朗读</h2>
+          <span class="counter" id="localState">未开始</span>
+        </div>
+        <p class="hint" id="localTip">
+          用手机系统自带的语音引擎朗读，不需要电脑、不需要后端、也不需要网络。
+          注意：<b>这种方式无法导出 MP3 文件</b>，自定义停顿标记会被转成自然停顿。
+        </p>
+
+        <select id="localVoice" class="select" disabled></select>
+        <p class="hint" id="localVoiceTip">正在读取系统语音…</p>
+        <div class="tag-row">
+          <button class="tag-btn tag-btn-plain" id="btnLocalRescan">重新检测语音</button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="btnLocalSpeak">朗读</button>
+          <button class="btn btn-plain" id="btnLocalPause" disabled>暂停</button>
+          <button class="btn btn-plain" id="btnLocalStop" disabled>停止</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-plain" id="btnEditServer2">修改后端地址</button>
+        </div>
+      </div>
+
+      <div class="card" id="historyCard" hidden>
+        <div class="card-head">
+          <h2 class="card-title">最近生成</h2>
+          <span class="counter">服务端保留 30 分钟</span>
+        </div>
+        <ul class="history" id="historyList"></ul>
+      </div>
+
+    </section>
+  </div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <footer class="footer">
+    <span id="serverInfo">—</span>
+    <button class="link-btn" id="btnEditServer">修改后端地址</button>
+  </footer>
+
+</div>
+
+<script>
+/* 轻语 TTS 网页版
+ * 手机与电脑浏览器通用。默认与后端同源部署（由 Flask 提供本页），
+ * 也可在页脚修改后端地址用于前后端分离部署。
+ */
+
+(function () {
+  'use strict';
+
+  var MAX_CHARS = 20000;
+  var LS_API = 'qingyu_api';
+  var LS_PREFS = 'qingyu_prefs';
+  var LS_HISTORY = 'qingyu_history';
+  var LS_DOCS = 'qingyu_docs';
+  var LS_POS = 'qingyu_pos';
+  var LS_THEME = 'qingyu_theme';
+  var LS_LOCAL_VOICE = 'qingyu_local_voice';
+  var PAUSE_RE = /\[\s*(?:p|停顿)\s*[:：]?\s*(?:\d+(?:\.\d+)?\s*(?:ms|s)?)?\s*\]/gi;
+
+  var ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+  var ICON_SUN = '<svg viewBox="0 0 24 24"><path d="M12 17a5 5 0 100-10 5 5 0 000 10zm0-13.5a1 1 0 011 1V6a1 1 0 01-2 0V4.5a1 1 0 011-1zm0 15a1 1 0 011 1V21a1 1 0 01-2 0v-1.5a1 1 0 011-1zM4.5 12a1 1 0 011-1H7a1 1 0 010 2H5.5a1 1 0 01-1-1zm15 0a1 1 0 011-1H22a1 1 0 010 2h-1.5a1 1 0 01-1-1zM6.99 5.64a1 1 0 011.41 0l1.06 1.06a1 1 0 01-1.41 1.41L6.99 7.05a1 1 0 010-1.41zm10.61 10.61a1 1 0 011.41 0l1.06 1.06a1 1 0 01-1.41 1.41l-1.06-1.06a1 1 0 010-1.41zM17.66 5.64a1 1 0 010 1.41l-1.06 1.06a1 1 0 01-1.41-1.41l1.06-1.06a1 1 0 011.41 0zM7.05 16.25a1 1 0 010 1.41L5.99 18.72a1 1 0 01-1.41-1.41l1.06-1.06a1 1 0 011.41 0z"/></svg>';
+  var ICON_MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+
+  // ------------------------------------------------------------------ 工具
+
+  function $(id) { return document.getElementById(id); }
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function fmtTime(sec) {
+    var s = Math.max(0, Math.round(Number(sec) || 0));
+    return pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+  }
+
+  function pct(v) {
+    var n = Number(v) || 0;
+    return n === 0 ? '正常' : (n > 0 ? '+' + n + '%' : n + '%');
+  }
+
+  function fmtDateTime(ts) {
+    var d = new Date(ts);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function notice(msg, kind) {
+    var el = $('notice');
+    if (!msg) { el.hidden = true; return; }
+    el.hidden = false;
+    el.className = 'notice' + (kind ? ' ' + kind : ' info');
+    el.textContent = msg;
+  }
+
+  function setStatus(ok, text) {
+    $('statusPill').className = 'status ' + (ok ? 'on' : 'off');
+    $('statusText').textContent = text;
+  }
+
+  // 构建单文件版时可由 window.QINGYU_DEFAULT_API 注入默认后端地址，
+  // 这样把 HTML 传到手机上直接打开就能连到电脑，无需手输地址。
+  var DEFAULT_API = (window.QINGYU_DEFAULT_API || '').replace(/\/+$/, '');
+
+  function apiBase() {
+    var saved = localStorage.getItem(LS_API);
+    if (saved === null) {
+      if (DEFAULT_API) return DEFAULT_API;
+      // 未手动设置时：网页由服务托管则用同源；
+      // 用 file:// 直接打开时，默认连本机后端，避免刚打开就报未连接。
+      return location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
+    }
+    return saved.replace(/\/+$/, '');
+  }
+
+  function absUrl(relative) {
+    if (!relative) return '';
+    if (/^https?:\/\//.test(relative)) return relative;
+    return apiBase() + relative;
+  }
+
+  async function api(path, options) {
+    var res = await fetch(apiBase() + path, options || {});
+    var ct = res.headers.get('content-type') || '';
+    var body = ct.indexOf('application/json') >= 0 ? await res.json() : await res.text();
+    if (!res.ok) {
+      throw new Error((body && body.error) || ('服务返回状态码 ' + res.status));
+    }
+    return body;
+  }
+
+  function post(path, data) {
+    return api(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data || {})
+    });
+  }
+
+  // ------------------------------------------------------------------ 状态
+
+  var state = {
+    voices: [],
+    audioUrl: '',
+    duration: 0,
+    filename: '',
+    // 当前正在听的资料名。健身场景下用户是"听资料"而不是"听一个随机文件"，
+    // 所以下载文件名要用资料名，否则在手机播放器里认不出来。
+    docName: '',
+    // 播放位置记忆的键：同一份资料 + 同一音色 + 同一语速视为同一条收听记录
+    posKey: '',
+    posSaveAt: 0,
+    timer: null,
+    busy: false,
+    busyBtn: null
+  };
+
+  var prefs = (function () {
+    try { return JSON.parse(localStorage.getItem(LS_PREFS)) || {}; }
+    catch (e) { return {}; }
+  })();
+
+  function savePrefs() { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); }
+
+  // ------------------------------------------------------------------ 主题
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    $('btnTheme').innerHTML = theme === 'dark' ? ICON_MOON : ICON_SUN;
+  }
+
+  function initTheme() {
+    var saved = localStorage.getItem(LS_THEME);
+    if (saved !== 'light' && saved !== 'dark') {
+      saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    applyTheme(saved);
+    $('btnTheme').addEventListener('click', function () {
+      var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      localStorage.setItem(LS_THEME, next);
+      applyTheme(next);
+    });
+  }
+
+  // ------------------------------------------------------------------ 初始化
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initTheme();
+
+    $('rate').value = prefs.rate || 0;
+    $('volume').value = prefs.volume || 0;
+    $('rateLabel').textContent = pct($('rate').value);
+    $('volumeLabel').textContent = pct($('volume').value);
+
+    bindEvents();
+    bindPlayer();
+    loadHealth();
+    loadVoices();
+    renderHistory();
+    renderDocs();
+
+    loadLocalVoices();
+    if (localSupported() && 'onvoiceschanged' in window.speechSynthesis) {
+      // 语音列表在很多浏览器里是异步就绪的
+      window.speechSynthesis.onvoiceschanged = loadLocalVoices;
+    }
+    updateLocalButtons();
+  });
+
+  function bindEvents() {
+    var text = $('text');
+    text.addEventListener('input', updateStats);
+    // 用户手动改了文本就不再是"那份资料"了，下载文件名要退回默认。
+    // 注意：playDoc 里是给 value 赋值，不会触发 input 事件，所以载入资料不受影响。
+    text.addEventListener('input', function () { state.docName = ''; });
+
+    $('btnImport').addEventListener('click', function () { $('fileInput').click(); });
+    $('fileInput').addEventListener('change', function (e) {
+      if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    var dz = $('dropzone');
+    ['dragenter', 'dragover'].forEach(function (t) {
+      dz.addEventListener(t, function (e) { e.preventDefault(); dz.classList.add('dragging'); });
+    });
+    ['dragleave', 'dragend'].forEach(function (t) {
+      dz.addEventListener(t, function () { dz.classList.remove('dragging'); });
+    });
+    dz.addEventListener('drop', function (e) {
+      e.preventDefault();
+      dz.classList.remove('dragging');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+
+    $('btnClear').addEventListener('click', function () {
+      if (!text.value) return;
+      if (!confirm('确定要清空当前输入的全部文字吗？')) return;
+      text.value = '';
+      updateStats();
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll('.tag-btn[data-ms]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var ms = Number(btn.dataset.ms) || 300;
+        insertAtCursor(text, ms >= 1000 ? '[p' + (ms / 1000) + 's]' : '[p' + ms + ']');
+        updateStats();
+      });
+    });
+
+    $('btnPauseHelp').addEventListener('click', function () {
+      alert('停顿标记语法：\n\n' +
+        '[p] —— 默认停顿 400 毫秒\n' +
+        '[p300] 或 [p300ms] —— 停顿 300 毫秒\n' +
+        '[p1.5s] —— 停顿 1.5 秒\n' +
+        '[停顿] / [停顿800] —— 中文写法\n\n' +
+        '段落之间的空行会自动插入 500 毫秒停顿。\n' +
+        '网页版会把标记插入光标所在位置。');
+    });
+
+    $('voice').addEventListener('change', function () {
+      var v = state.voices[$('voice').selectedIndex];
+      if (!v) return;
+      prefs.voice = v.id;
+      savePrefs();
+      $('voiceDesc').textContent = v.desc || (v.name + '（' + v.gender + '声，' + (v.style || '通用') + '）');
+    });
+
+    $('rate').addEventListener('input', function () {
+      $('rateLabel').textContent = pct(this.value);
+      prefs.rate = Number(this.value);
+      savePrefs();
+    });
+    $('volume').addEventListener('input', function () {
+      $('volumeLabel').textContent = pct(this.value);
+      prefs.volume = Number(this.value);
+      savePrefs();
+    });
+
+    $('btnPreview').addEventListener('click', doPreview);
+    $('btnGenerate').addEventListener('click', doGenerate);
+    $('btnDownload').addEventListener('click', doDownload);
+    $('btnCopyLink').addEventListener('click', doCopyLink);
+    $('btnEditServer').addEventListener('click', editServer);
+    $('btnLocalSpeak').addEventListener('click', localSpeak);
+    $('btnLocalPause').addEventListener('click', localTogglePause);
+    // 注意：不能直接把 stopLocal 当回调，事件对象会被当成 silent 参数
+    $('btnLocalStop').addEventListener('click', function () { stopLocal(); });
+    $('localVoice').addEventListener('change', function () {
+      localStorage.setItem(LS_LOCAL_VOICE, this.value);
+    });
+    $('btnEditServer2').addEventListener('click', editServer);
+    $('btnLocalRescan').addEventListener('click', function () {
+      loadLocalVoices();
+      notice('已重新检测系统语音引擎。');
+    });
+    $('btnSaveDoc').addEventListener('click', saveCurrentDoc);
+  }
+
+  function insertAtCursor(el, text) {
+    var start = el.selectionStart == null ? el.value.length : el.selectionStart;
+    var end = el.selectionEnd == null ? el.value.length : el.selectionEnd;
+    el.value = el.value.slice(0, start) + text + el.value.slice(end);
+    el.selectionStart = el.selectionEnd = start + text.length;
+    el.focus();
+  }
+
+  function updateStats() {
+    var t = $('text').value;
+    var m = t.match(PAUSE_RE);
+    $('charCount').textContent = t.length + ' 字';
+    $('pauseCount').textContent = (m ? m.length : 0) + ' 处';
+  }
+
+  // ------------------------------------------------------------------ 播放器
+
+  function bindPlayer() {
+    var a = $('player');
+    a.addEventListener('timeupdate', syncPlayer);
+    a.addEventListener('loadedmetadata', function () {
+      syncPlayer();
+      maybeResume();
+    });
+    a.addEventListener('play', renderPlayIcon);
+    a.addEventListener('pause', function () {
+      renderPlayIcon();
+      savePos($('player').currentTime || 0);
+    });
+    a.addEventListener('ended', function () {
+      renderPlayIcon();
+      savePos($('player').duration || 0);
+      $('trackFill').style.width = '0%';
+      $('curTime').textContent = '00:00';
+    });
+    a.addEventListener('error', function () {
+      notice('音频加载失败，链接可能已过期（服务端默认保留 2 小时）', 'error');
+    });
+    $('btnPlay').addEventListener('click', togglePlay);
+    $('track').addEventListener('click', seekByClick);
+    renderPlayIcon();
+  }
+
+  function syncPlayer() {
+    var a = $('player');
+    var d = isFinite(a.duration) ? a.duration : 0;
+    var c = a.currentTime || 0;
+    $('curTime').textContent = fmtTime(c);
+    $('totTime').textContent = fmtTime(d);
+    $('trackFill').style.width = (d > 0 ? (c / d * 100) : 0) + '%';
+    if (d > 0) $('durationText').textContent = fmtTime(d);
+
+    // timeupdate 每秒触发好几次，没必要每次都写 localStorage
+    var now = Date.now();
+    if (now - state.posSaveAt > 5000) {
+      state.posSaveAt = now;
+      savePos(c);
+    }
+  }
+
+  function renderPlayIcon() {
+    $('btnPlay').innerHTML = $('player').paused ? ICON_PLAY : ICON_PAUSE;
+  }
+
+  function togglePlay() {
+    var a = $('player');
+    if (!a.src) { notice('还没有可播放的音频', 'warn'); return; }
+    if (a.paused) tryPlay();
+    else a.pause();
+  }
+
+  function seekByClick(e) {
+    var a = $('player');
+    if (!isFinite(a.duration) || a.duration <= 0) return;
+    var rect = $('track').getBoundingClientRect();
+    var ratio = (e.clientX - rect.left) / rect.width;
+    ratio = Math.min(1, Math.max(0, ratio));
+    a.currentTime = ratio * a.duration;
+  }
+
+  function tryPlay() {
+    var p = $('player').play();
+    if (p && p.catch) p.catch(function () { /* 自动播放被拦截时静默，用户可手动点播 */ });
+  }
+
+  // ------------------------------------------------------------------ 文件导入
+
+  async function handleFile(file) {
+    if (file.size > 2 * 1024 * 1024) {
+      notice('文件超过 2MB，请拆分后导入', 'warn');
+      return;
+    }
+    notice('正在读取文件…');
+    try {
+      var buf = await file.arrayBuffer();
+      var text = new TextDecoder('utf-8').decode(buf);
+      var encoding = 'UTF-8';
+      if (text.indexOf('\uFFFD') >= 0) {
+        // 出现替换字符说明不是 UTF-8，尝试中文常见编码
+        var candidates = ['gb18030', 'gbk', 'big5'];
+        for (var i = 0; i < candidates.length; i++) {
+          try {
+            var alt = new TextDecoder(candidates[i]).decode(buf);
+            if (alt.indexOf('\uFFFD') < 0) { text = alt; encoding = candidates[i].toUpperCase(); break; }
+          } catch (e) { /* 浏览器不支持该编码则跳过 */ }
+        }
+      }
+      if (text.length > MAX_CHARS) {
+        text = text.slice(0, MAX_CHARS);
+        notice('文件已截断至 ' + MAX_CHARS + ' 字', 'warn');
+      }
+      var el = $('text');
+      el.value = el.value ? el.value + '\n\n' + text : text;
+      updateStats();
+      notice('已读取 ' + text.length + ' 字（编码 ' + encoding + '）');
+    } catch (e) {
+      notice('读取失败：' + e.message, 'error');
+    }
+  }
+
+  // ------------------------------------------------------------------ 服务自检与音色
+
+  async function loadHealth() {
+    try {
+      var h = await api('/api/health');
+      setStatus(true, '服务已连接');
+      $('localTip').innerHTML =
+        '后端可用时会优先使用后端合成（可导出 MP3）。此模式随时可用，不需要电脑和网络，' +
+        '但<b>无法导出音频文件</b>。';
+      $('serverInfo').textContent =
+        '停顿标记' + (h.ssml_pause ? '可用' : '不可用') +
+        ' · 无损合并' + (h.ffmpeg_merge ? '可用' : '不可用（时长可能有偏差）') +
+        ' · 音色 ' + h.voices + ' 个（' + (h.voice_source === 'online' ? '在线' : '内置') + '）' +
+        ' · 引擎 ' + (h.engine === 'local' ? '本地' : '云端') + (h.engine_degraded ? '（已降级）' : '');
+    } catch (e) {
+      setStatus(false, '未连接');
+      $('localTip').innerHTML =
+        '当前<b>连不上后端</b>，可直接使用下面的离线朗读，不需要电脑和网络。' +
+        '注意：<b>这种方式无法导出 MP3 文件</b>。';
+      $('serverInfo').textContent = '未连接到服务：' + e.message;
+      notice('无法连接后端服务（' + apiBase() + '）。请确认电脑上的服务已启动、手机与电脑在同一 WiFi，或点「修改后端地址」更正。', 'error');
+    }
+  }
+
+  async function loadVoices() {
+    var sel = $('voice');
+    try {
+      var res = await api('/api/voices');
+      state.voices = res.voices || [];
+      if (!state.voices.length) throw new Error('音色列表为空');
+      sel.innerHTML = '';
+      state.voices.forEach(function (v) {
+        var opt = document.createElement('option');
+        opt.textContent = v.name + ' · ' + v.gender + ' · ' + (v.style || '通用');
+        sel.appendChild(opt);
+      });
+      sel.disabled = false;
+      var idx = state.voices.findIndex(function (v) { return v.id === prefs.voice; });
+      sel.selectedIndex = idx < 0 ? 0 : idx;
+      var cur = state.voices[sel.selectedIndex];
+      prefs.voice = cur.id;
+      savePrefs();
+      $('voiceDesc').textContent = cur.desc || (cur.name + '（' + cur.gender + '声，' + (cur.style || '通用') + '）');
+      $('voiceSource').textContent = (res.source === 'online' ? '在线' : '内置') + ' ' + res.count + ' 个';
+    } catch (e) {
+      sel.innerHTML = '<option>未连接到服务</option>';
+      sel.disabled = true;
+      $('voiceSource').textContent = '连接失败';
+    }
+  }
+
+  function currentVoice() {
+    var v = state.voices[$('voice').selectedIndex];
+    return v ? v.id : 'zh-CN-XiaoxiaoNeural';
+  }
+
+  function currentVoiceName() {
+    var v = state.voices[$('voice').selectedIndex];
+    return v ? v.name : '默认';
+  }
+
+  function payload() {
+    return {
+      text: $('text').value,
+      voice: currentVoice(),
+      rate: Number($('rate').value),
+      volume: Number($('volume').value)
+    };
+  }
+
+  // ------------------------------------------------------------------ 合成
+
+  function setBusy(busy, btn) {
+    state.busy = busy;
+    $('btnPreview').disabled = busy;
+    $('btnGenerate').disabled = busy;
+    if (btn) {
+      state.busyBtn = btn;
+      btn.innerHTML = '<span class="spinner"></span>' + (btn === $('btnPreview') ? '合成中' : '生成中');
+    } else if (state.busyBtn) {
+      state.busyBtn.textContent = state.busyBtn === $('btnPreview') ? '试听' : '生成完整音频';
+      state.busyBtn = null;
+    }
+  }
+
+  async function doPreview() {
+    if (state.busy) return;
+    if (!$('text').value.trim()) { notice('请先输入文本', 'warn'); return; }
+    setBusy(true, $('btnPreview'));
+    notice('正在合成试听…');
+    try {
+      var res = await post('/api/preview', payload());
+      setAudio(res.audio_url, res.duration, false);
+      notice(res.clipped ? '试听仅包含前 200 字，确认音色后点击「生成完整音频」' : '试听已就绪');
+      if (res.engine === 'local') {
+        notice('已使用本地语音引擎（云端不可达时自动降级），输出为 WAV 文件，可直接下载。');
+      }
+      tryPlay();
+    } catch (e) {
+      notice('试听失败：' + e.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doGenerate() {
+    if (state.busy) return;
+    var t = $('text').value;
+    if (!t.trim()) { notice('请先输入文本', 'warn'); return; }
+    if (t.length > MAX_CHARS) { notice('文本上限 ' + MAX_CHARS + ' 字', 'warn'); return; }
+
+    setBusy(true, $('btnGenerate'));
+    $('progressBox').hidden = false;
+    $('barFill').style.width = '0%';
+    $('progressText').textContent = '0%';
+    $('segmentText').textContent = '已完成 0 / 0 段';
+    notice('任务已提交，正在分段合成…');
+
+    try {
+      var res = await post('/api/synthesize', payload());
+      startPoll(res.task_id);
+    } catch (e) {
+      $('progressBox').hidden = true;
+      setBusy(false);
+      notice('提交失败：' + e.message, 'error');
+    }
+  }
+
+  function startPoll(taskId) {
+    stopPoll();
+    state.timer = setInterval(function () {
+      api('/api/tasks/' + taskId).then(function (t) {
+        var p = t.progress || 0;
+        $('barFill').style.width = p + '%';
+        $('progressText').textContent = p + '%';
+        $('segmentText').textContent = '已完成 ' + (t.done_segments || 0) + ' / ' + (t.total_segments || 0) + ' 段';
+
+        if (t.status === 'done') {
+          stopPoll();
+          $('progressBox').hidden = true;
+          setBusy(false);
+          setAudio(t.audio_url, t.duration);
+          notice('生成完成：' + (t.total_segments || 1) + ' 段 / ' + fmtTime(t.duration) + ' / 耗时 ' + t.elapsed + ' 秒');
+          if (t.engine === 'local') {
+            notice('已使用本地语音引擎（云端不可达时自动降级），输出为 WAV 文件，可直接下载。');
+          }
+          tryPlay();
+        } else if (t.status === 'error') {
+          stopPoll();
+          $('progressBox').hidden = true;
+          setBusy(false);
+          notice('合成失败：' + (t.error || '未知错误'), 'error');
+        }
+      }).catch(function () {
+        /* 单次轮询失败不中断任务，等待下一轮 */
+      });
+    }, 1000);
+  }
+
+  function stopPoll() {
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+  }
+
+  /** 从音频地址推断扩展名：本地引擎输出 wav，云端输出 mp3 */
+  function extOf(url) {
+    var m = String(url || '').split('?')[0].match(/\.(mp3|wav)$/i);
+    return m ? m[1].toLowerCase() : 'mp3';
+  }
+
+  /** 文件名里不能出现 \ / : * ? " < > | ，手机/Windows 都会拒绝或截断 */
+  function safeFileName(name) {
+    var s = String(name || '').replace(/[\\/:*?"<>|\r\n\t]+/g, ' ').trim();
+    s = s.replace(/\s+/g, ' ');
+    return s.slice(0, 40);
+  }
+
+  /** 简单字符串哈希（djb2），用于给"这份文本 + 这个音色"生成稳定的收听进度键 */
+  function hash32(str) {
+    var h = 5381;
+    for (var i = 0; i < str.length; i++) {
+      h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+    }
+    return h.toString(36);
+  }
+
+  function docKeyOf(text, voice, rate) {
+    return hash32(String(text || '') + '|' + String(voice || '') + '|' + String(rate || 0));
+  }
+
+  /**
+   * @param {boolean} trackPos 是否记忆收听进度。试听只有前 200 字，
+   *   进度对整篇没有意义，必须关掉，否则会把"试听到第 8 秒"记成"整篇听到第 8 秒"。
+   */
+  function setAudio(url, duration, trackPos) {
+    state.audioUrl = absUrl(url);
+    state.duration = Number(duration) || 0;
+    var ext = extOf(url);
+    state.filename = (state.docName ? safeFileName(state.docName) : '轻语-' + timestamp()) + '.' + ext;
+    if (trackPos === false) {
+      state.posKey = '';
+    } else {
+      // 同一份文本 + 同一音色 + 同一语速视为同一条收听记录。
+      // 健身时一份资料往往要分好几次听完，没有这个就只能从头再来。
+      state.posKey = docKeyOf($('text').value, currentVoice(), $('rate').value);
+    }
+    $('playerCard').hidden = false;
+    $('player').src = state.audioUrl;
+    $('durationText').textContent = fmtTime(state.duration);
+    $('totTime').textContent = fmtTime(state.duration);
+    $('curTime').textContent = '00:00';
+    $('trackFill').style.width = '0%';
+    $('player').load();
+    pushHistory();
+  }
+
+  // ---------------------------- 收听进度（按资料记忆）----------------------------
+
+  function loadPosMap() {
+    try { return JSON.parse(localStorage.getItem(LS_POS)) || {}; }
+    catch (e) { return {}; }
+  }
+
+  /** 纯函数：把进度表裁剪到最近 keep 条。抽出来是为了能被工具脚本直接测试 */
+  function prunePosMap(map, keep) {
+    var keys = Object.keys(map);
+    if (keys.length <= keep) return map;
+    var out = {};
+    keys.slice(-keep).forEach(function (k) { out[k] = map[k]; });
+    return out;
+  }
+
+  function savePos(sec) {
+    if (!state.posKey) return;
+    try {
+      var map = loadPosMap();
+      // 听完超过 95% 就清除进度，下次从头开始
+      if (state.duration && sec > state.duration * 0.95) delete map[state.posKey];
+      else map[state.posKey] = Math.floor(sec);
+      // 只保留最近 30 条，避免把 localStorage 撑满
+      localStorage.setItem(LS_POS, JSON.stringify(prunePosMap(map, 30)));
+    } catch (e) { /* 隐私模式下 localStorage 不可写，忽略 */ }
+  }
+
+  function savedPos() {
+    if (!state.posKey) return 0;
+    return Number(loadPosMap()[state.posKey]) || 0;
+  }
+
+  /** 元数据就绪后决定是否续播。太靠头/太靠尾的进度不值得跳 */
+  function maybeResume() {
+    var sec = savedPos();
+    if (!sec || sec < 10) return;
+    if (state.duration && sec > state.duration - 15) return;
+    try {
+      $('player').currentTime = sec;
+      notice('已跳到上次听到的 ' + fmtTime(sec) + '，从头听请拖回进度条最左端');
+    } catch (e) { /* 部分浏览器在无 Range 支持时会抛错，忽略 */ }
+  }
+
+  function timestamp() {
+    var d = new Date();
+    return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+           '-' + pad(d.getHours()) + pad(d.getMinutes());
+  }
+
+  // ------------------------------------------------------------------ 下载与历史
+
+  async function doDownload() {
+    if (!state.audioUrl) return;
+    notice('正在下载…');
+    try {
+      var res = await fetch(state.audioUrl);
+      if (!res.ok) throw new Error('下载失败，状态码 ' + res.status);
+      var blob = await res.blob();
+      var objUrl = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = objUrl;
+      a.download = state.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(objUrl); }, 10000);
+      notice('已开始下载：' + state.filename);
+    } catch (e) {
+      notice('下载失败：' + e.message, 'error');
+    }
+  }
+
+  function doCopyLink() {
+    if (!state.audioUrl) return;
+    var text = state.audioUrl;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { notice('链接已复制'); },
+        function () { notice('复制失败，请手动复制：' + text, 'warn'); }
+      );
+    } else {
+      notice('当前浏览器不支持自动复制，链接为：' + text, 'warn');
+    }
+  }
+
+  function pushHistory() {
+    try {
+      var list = JSON.parse(localStorage.getItem(LS_HISTORY)) || [];
+      list.unshift({
+        url: state.audioUrl,
+        name: ($('text').value || '未命名').replace(/\s+/g, ' ').slice(0, 20),
+        voice: currentVoiceName(),
+        duration: state.duration,
+        file: state.filename,
+        time: Date.now()
+      });
+      localStorage.setItem(LS_HISTORY, JSON.stringify(list.slice(0, 20)));
+      renderHistory();
+    } catch (e) { /* 存储不可用时忽略 */ }
+  }
+
+  function renderHistory() {
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem(LS_HISTORY)) || []; } catch (e) { list = []; }
+    var box = $('historyList');
+    $('historyCard').hidden = list.length === 0;
+    box.innerHTML = '';
+    list.forEach(function (item, index) {
+      var li = document.createElement('li');
+
+      var main = document.createElement('div');
+      main.className = 'hist-main';
+      var name = document.createElement('div');
+      name.className = 'hist-name';
+      name.textContent = item.name || '未命名';
+      var meta = document.createElement('div');
+      meta.className = 'hist-meta';
+      meta.textContent = item.voice + ' · ' + fmtTime(item.duration) + ' · ' + fmtDateTime(item.time);
+      main.appendChild(name);
+      main.appendChild(meta);
+
+      var play = document.createElement('button');
+      play.className = 'hist-btn';
+      play.textContent = '播放';
+      play.addEventListener('click', function () {
+        state.audioUrl = item.url;
+        state.filename = item.file || ('轻语-' + timestamp() + '.' + extOf(item.url));
+        // 历史记录里没有原文，无法算出 posKey。置空是为了避免把进度写到别的资料名下。
+        state.posKey = '';
+        state.docName = item.name || '';
+        $('playerCard').hidden = false;
+        $('player').src = item.url;
+        $('durationText').textContent = fmtTime(item.duration);
+        $('totTime').textContent = fmtTime(item.duration);
+        $('curTime').textContent = '00:00';
+        $('trackFill').style.width = '0%';
+        $('player').load();
+        tryPlay();
+      });
+
+      var down = document.createElement('button');
+      down.className = 'hist-btn';
+      down.textContent = '下载';
+      down.addEventListener('click', function () {
+        state.audioUrl = item.url;
+        state.filename = item.file || ('轻语-' + timestamp() + '.' + extOf(item.url));
+        doDownload();
+      });
+
+      var del = document.createElement('button');
+      del.className = 'hist-btn del';
+      del.textContent = '删除';
+      del.addEventListener('click', function () {
+        list.splice(index, 1);
+        localStorage.setItem(LS_HISTORY, JSON.stringify(list));
+        renderHistory();
+      });
+
+      li.appendChild(main);
+      li.appendChild(play);
+      li.appendChild(down);
+      li.appendChild(del);
+      box.appendChild(li);
+    });
+  }
+
+  // ---------------------------- 离线朗读（手机本地语音引擎）----------------------------
+  // 不依赖后端：用浏览器内置的 Web Speech API。缺点是无法导出音频文件，
+  // 音色取决于系统是否装有中文语音引擎。
+
+  var local = { chunks: [], idx: 0, running: false, paused: false };
+
+  function localSupported() {
+    return 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
+  }
+
+  function localRate() { return Math.min(2, Math.max(0.5, 1 + Number($('rate').value) / 100)); }
+  function localVolume() { return Math.min(1, Math.max(0, (100 + Number($('volume').value)) / 100)); }
+
+  /** 切分朗读块：句末标点、空行、自定义停顿标记都作为切分点 */
+  function splitForSpeech(raw) {
+    var text = raw.replace(PAUSE_RE, '\u0001');   // 停顿标记转成切分点
+    var ends = '。！？!?；;\n';
+    var parts = [];
+    var buf = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      buf += ch;
+      if (ends.indexOf(ch) >= 0 || ch === '\u0001') {
+        if (buf.replace(/\u0001/g, '').trim()) parts.push(buf.replace(/\u0001/g, '').trim());
+        buf = '';
+      }
+    }
+    if (buf.replace(/\u0001/g, '').trim()) parts.push(buf.replace(/\u0001/g, '').trim());
+
+    // 片段过短会让引擎频繁启停，合并到约 60 字一段
+    var merged = [];
+    var cur = '';
+    for (var j = 0; j < parts.length; j++) {
+      cur += parts[j];
+      if (cur.length >= 60) { merged.push(cur); cur = ''; }
+    }
+    if (cur.trim()) merged.push(cur);
+    return merged.length ? merged : [raw];
+  }
+
+  /** 微信内置浏览器不支持 Web Speech API，且是用户最常见的使用场景，单独识别并给出指引 */
+  function inWeChat() {
+    return /MicroMessenger/i.test(navigator.userAgent || '');
+  }
+
+  function loadLocalVoices() {
+    var sel = $('localVoice');
+    var tip = $('localVoiceTip');
+
+    if (!localSupported()) {
+      sel.innerHTML = '<option>浏览器不支持本地朗读</option>';
+      sel.disabled = true;
+      tip.innerHTML = inWeChat()
+        ? '<b>检测到微信内置浏览器</b>：它不支持网页的语音合成能力。'
+          + '请点右上角「···」→「在浏览器打开」，再使用此功能。'
+        : '当前浏览器不支持本地朗读（缺少 Web Speech API）。'
+          + '请改用 Chrome / Safari / Edge 等浏览器打开，或使用后端合成。';
+      return;
+    }
+
+    var all = window.speechSynthesis.getVoices() || [];
+    if (!all.length) {
+      sel.innerHTML = '<option>未检测到系统语音引擎</option>';
+      sel.disabled = true;
+      tip.innerHTML = inWeChat()
+        ? '<b>检测到微信内置浏览器</b>：它读不到系统语音引擎，'
+          + '请点右上角「···」→「在浏览器打开」。'
+        : '浏览器支持朗读，但没有读到任何系统语音引擎。安卓设备通常需要安装'
+          + '「Google 文字转语音」或厂商自带的中文语音包；也可以点下方'
+          + '「重新检测语音」再试一次。';
+      return;
+    }
+
+    var zh = all.filter(function (v) { return /^zh/i.test(v.lang || ''); });
+    var list = zh.length ? zh : all;
+
+    sel.innerHTML = '';
+    list.forEach(function (v) {
+      var opt = document.createElement('option');
+      opt.textContent = v.name + '（' + v.lang + '）';
+      opt.value = v.voiceURI || v.name;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+
+    var saved = localStorage.getItem(LS_LOCAL_VOICE);
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) {
+      if ((list[i].voiceURI || list[i].name) === saved) { idx = i; break; }
+    }
+    sel.selectedIndex = idx < 0 ? 0 : idx;
+
+    $('localVoiceTip').textContent = zh.length
+      ? '共 ' + zh.length + ' 个中文语音' +
+        (zh.length < all.length ? '，另有 ' + (all.length - zh.length) + ' 个非中文语音未列出' : '')
+      : '系统未安装中文语音引擎，朗读中文可能发音异常。';
+  }
+
+  function currentLocalVoice() {
+    var sel = $('localVoice');
+    if (!sel || sel.disabled || !sel.value) return null;
+    var all = window.speechSynthesis.getVoices() || [];
+    for (var i = 0; i < all.length; i++) {
+      if ((all[i].voiceURI || all[i].name) === sel.value) return all[i];
+    }
+    return null;
+  }
+
+  function localSpeak() {
+    var raw = $('text').value;
+    if (!raw.trim()) { notice('请先输入文本', 'warn'); return; }
+    if (!localSupported()) { notice('当前浏览器不支持本地朗读', 'warn'); return; }
+
+    stopLocal(true);
+    local.chunks = splitForSpeech(raw);
+    local.idx = 0;
+    local.running = true;
+    local.paused = false;
+    speakChunk();
+    updateLocalButtons();
+  }
+
+  function speakChunk() {
+    if (!local.running) return;
+    if (local.idx >= local.chunks.length) { finishLocal('朗读结束'); return; }
+
+    var u = new window.SpeechSynthesisUtterance(local.chunks[local.idx]);
+    var v = currentLocalVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'zh-CN'; }
+    u.rate = localRate();
+    u.volume = localVolume();
+
+    u.onend = function () {
+      if (!local.running) return;      // 已被停止，忽略收尾事件
+      local.idx++;
+      speakChunk();
+      if (local.running) updateLocalProgress();
+    };
+    u.onerror = function (e) {
+      if (!local.running) return;   // 由 stop/cancel 触发，属预期行为，不提示
+
+      var code = (e && e.error) || 'unknown';
+
+      // 正常停止：状态栏保持简短，避免长文案把标题挤换行
+      if (code === 'interrupted' || code === 'canceled') {
+        finishLocal('已停止');
+        return;
+      }
+
+      var msg;
+      if (code === 'synthesis-failed') {
+        msg = '系统语音引擎调用失败：设备可能没有可用的中文语音引擎。'
+            + (inWeChat() ? '另外微信内置浏览器不支持本地朗读，请点右上角「···」→「在浏览器打开」。' : '');
+      } else if (code === 'not-allowed') {
+        msg = '浏览器阻止了朗读，请先点击页面任意位置后再试。';
+      } else if (code === 'audio-busy' || code === 'audio-hardware') {
+        msg = '设备音频被占用，请关闭其它正在播放的声音后重试。';
+      } else {
+        msg = '朗读中断（' + code + '）。';
+      }
+      finishLocal('已中断');
+      notice(msg, 'warn');
+    };
+
+    updateLocalProgress();
+    try {
+      window.speechSynthesis.speak(u);
+    } catch (err) {
+      finishLocal('朗读失败：' + err.message);
+    }
+  }
+
+  function finishLocal(msg) {
+    local.running = false;
+    local.paused = false;
+    if (localSupported()) window.speechSynthesis.cancel();
+    setLocalState(msg);
+    updateLocalButtons();
+  }
+
+  function stopLocal(silent) {
+    local.running = false;
+    local.paused = false;
+    if (localSupported()) window.speechSynthesis.cancel();
+    if (!silent) { setLocalState('已停止'); updateLocalButtons(); }
+  }
+
+  function localTogglePause() {
+    if (!local.running) return;
+    if (local.paused) {
+      window.speechSynthesis.resume();
+      local.paused = false;
+      updateLocalProgress();
+    } else {
+      window.speechSynthesis.pause();
+      local.paused = true;
+      setLocalState('已暂停 · 第 ' + (local.idx + 1) + ' / ' + local.chunks.length + ' 段');
+    }
+    updateLocalButtons();
+  }
+
+  function updateLocalProgress() {
+    var n = Math.min(local.idx + 1, local.chunks.length);
+    setLocalState('第 ' + n + ' / ' + local.chunks.length + ' 段');
+  }
+
+  function updateLocalButtons() {
+    $('btnLocalSpeak').disabled = local.running;
+    $('btnLocalPause').disabled = !local.running;
+    $('btnLocalStop').disabled = !local.running;
+    $('btnLocalPause').textContent = local.paused ? '继续' : '暂停';
+  }
+
+  function setLocalState(text) {
+    var el = $('localState');
+    if (el) el.textContent = text || '';
+  }
+
+  // ---------------------------- 我的资料（健身/通勤场景的核心）----------------------------
+  // 用户的真实诉求是"健身时听自己的资料"，所以资料必须能存下来反复收听，
+  // 而不是每次重新粘贴。资料存在浏览器本地，不上传服务器。
+
+  function loadDocs() {
+    try { return JSON.parse(localStorage.getItem(LS_DOCS)) || []; }
+    catch (e) { return []; }
+  }
+
+  function saveDocs(list) {
+    try { localStorage.setItem(LS_DOCS, JSON.stringify((list || []).slice(0, 50))); }
+    catch (e) { notice('本地存储空间不足，请先删除一些资料', 'warn'); }
+  }
+
+  function renderDocs() {
+    var list = loadDocs();
+    var box = $('docsList');
+    $('docsCount').textContent = list.length + ' 篇';
+    $('docsEmpty').hidden = list.length > 0;
+    box.innerHTML = '';
+
+    list.forEach(function (d, index) {
+      var li = document.createElement('li');
+
+      var main = document.createElement('div');
+      main.className = 'doc-main';
+      var name = document.createElement('div');
+      name.className = 'doc-name';
+      name.textContent = d.name || '未命名资料';
+      var meta = document.createElement('div');
+      meta.className = 'doc-meta';
+      meta.textContent = (d.chars || 0) + ' 字 · ' + (d.voiceName || '默认音色') +
+                         ' · 语速 ' + pct(d.rate || 0);
+      main.appendChild(name);
+      main.appendChild(meta);
+
+      var play = document.createElement('button');
+      play.className = 'hist-btn';
+      play.textContent = '收听';
+      play.addEventListener('click', function () { playDoc(index); });
+
+      var del = document.createElement('button');
+      del.className = 'hist-btn del';
+      del.textContent = '删除';
+      del.addEventListener('click', function () {
+        var l = loadDocs();
+        var target = l[index];
+        if (!confirm('删除《' + (target && target.name || '未命名') + '》？该资料的文本也会一并删除。')) return;
+        l.splice(index, 1);
+        saveDocs(l);
+        renderDocs();
+      });
+
+      li.appendChild(main);
+      li.appendChild(play);
+      li.appendChild(del);
+      box.appendChild(li);
+    });
+  }
+
+  /** 载入资料并直接开始合成播放——健身场景下要的就是一步到位 */
+  function playDoc(index) {
+    var d = loadDocs()[index];
+    if (!d) return;
+
+    $('text').value = d.text || '';
+    updateStats();
+
+    if (d.voice) {
+      for (var i = 0; i < state.voices.length; i++) {
+        if (state.voices[i].id === d.voice) { $('voice').selectedIndex = i; break; }
+      }
+    }
+    if (typeof d.rate === 'number') {
+      $('rate').value = d.rate;
+      $('rateLabel').textContent = pct(d.rate);
+    }
+    if (typeof d.volume === 'number') {
+      $('volume').value = d.volume;
+      $('volumeLabel').textContent = pct(d.volume);
+    }
+
+    notice('已载入《' + (d.name || '未命名资料') + '》，正在生成音频…');
+    // 先置空再由下面 setAudio 用资料名命名下载文件
+    state.docName = d.name || '';
+    doGenerate();
+  }
+
+  function saveCurrentDoc() {
+    var t = $('text').value;
+    if (!t.trim()) { notice('请先输入或导入文本', 'warn'); return; }
+
+    var suggest = t.trim().replace(/\s+/g, ' ').slice(0, 12);
+    var name = prompt('给这份资料起个名字', suggest);
+    if (name === null) return;
+
+    var finalName = (name || '').trim() || suggest || '未命名资料';
+    var list = loadDocs();
+    list.unshift({
+      name: finalName,
+      text: t,
+      chars: t.length,
+      voice: currentVoice(),
+      voiceName: currentVoiceName(),
+      rate: Number($('rate').value),
+      volume: Number($('volume').value),
+      time: Date.now()
+    });
+    saveDocs(list);
+    renderDocs();
+    state.docName = finalName;
+    notice('已保存资料《' + finalName + '》，下次点「收听」即可直接播放');
+  }
+
+  // ------------------------------------------------------------------ 后端地址
+
+  function editServer() {
+    var v = prompt('后端服务地址（留空表示与本页面同源）', apiBase());
+    if (v === null) return;
+    v = v.trim().replace(/\/+$/, '');
+    localStorage.setItem(LS_API, v);
+    loadHealth();
+    loadVoices();
+  }
+})();
+
+</script>
+</body>
+</html>
